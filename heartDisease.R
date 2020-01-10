@@ -50,7 +50,7 @@ dataset =
   url("https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"), 
   header = FALSE,
   na.strings = "?",
-  colClasses=c("num"="factor"),
+  #colClasses=c("num"="factor"),
   #skipNul = TRUE,
   col.names = 
     c("age",
@@ -72,6 +72,8 @@ dataset =
 
 # to remove nul
 dataset = dataset[complete.cases(dataset), ]
+dataset$num[dataset$num > 0] = 1
+dataset$num <- factor(dataset$num)
 
 # create a list of 80% of the rows in the original dataset for training
 validation_index = createDataPartition(dataset$num, p=0.80, list=FALSE)
@@ -183,15 +185,22 @@ fit.svm <- train(num~., data=dataset, method="svmRadial", metric=metric, trContr
 # Random Forest
 set.seed(7)
 fit.rf <- train(num~., data=dataset, method="rf", metric=metric, trControl=control, na.action=na.omit)
+# Reti neurali
+set.seed(7)
+fit.nnet <- train(num~., data=dataset, method="nnet", metric=metric, trControl=control, na.action=na.omit)
+# Naive bayes
+set.seed(7)
+fit.nb <- train(num~., data=dataset, method="nb", metric=metric, trControl=control, na.action=na.omit)
 
-# Select Best Model
+
+y# Select Best Model
 # We now have 5 models and accuracy estimations for each. 
 # We need to compare the models to each other and select the most accurate.
 # We can report on the accuracy of each model by first creating a list of 
 # the created models and using the summary function.
 #
 # We can see the accuracy of each classifier and also other metrics like Kappa
-results = resamples(list(lda=fit.lda, cart=fit.cart, knn=fit.knn, svm=fit.svm, rf=fit.rf))
+results = resamples(list(lda=fit.lda, cart=fit.cart, knn=fit.knn, svm=fit.svm, rf=fit.rf, nnet=fit.nnet, nb=fit.nb))
 summary(results)
 
 # We can also create a plot of the model evaluation results and compare the
