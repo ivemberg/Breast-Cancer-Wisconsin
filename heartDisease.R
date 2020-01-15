@@ -12,7 +12,7 @@
 #########################################
 
 # Set your workspace path
-setwd("~/R/Machine Learning/ProgettoMachineLearning")
+# setwd("~/R/Machine Learning/ProgettoMachineLearning")
 install.packages("caret")
 library(caret)
 
@@ -34,24 +34,11 @@ library(caret)
 #51 (thal)
 #58 (num) (the predicted attribute)
 #
-# riga 288 aveva un valore ? cioe null
-# na.strings = "NULL"
-# convertire num in factor colClasses=c("num"="factor") per
-# visualizzare il dataset con l'intenzione di non fare una multiclassificazione
-# e non una regressione
-# 
-# usiamo na.action=na.omit per omettere le righe contenenti null
-#
-# Error in table "all arguments must have the same length"
-# per ora eliminiamo tutti i valori null
-#
 dataset = 
   read.csv(
   url("https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"), 
   header = FALSE,
   na.strings = "?",
-  #colClasses=c("num"="factor"),
-  #skipNul = TRUE,
   col.names = 
     c("age",
       "sex",
@@ -70,10 +57,14 @@ dataset =
     )
   )
 
-# to remove nul
+# to remove rows with null attribute values 
 dataset = dataset[complete.cases(dataset), ]
+# foctor for target attribute
 dataset$num[dataset$num > 0] = 1
-dataset$num <- factor(dataset$num)
+# FORSE MEGLIO NON TENERLO, errori con i grafici (in realta' non li abbiamo fatti)
+# convert 0, 1 in characthers to better describe
+# dataset$num = factor(dataset$num)
+# dataset$sex = ifelse(dataset$sex==0,'female','male')
 
 # create a list of 80% of the rows in the original dataset for training
 validation_index = createDataPartition(dataset$num, p=0.80, list=FALSE)
@@ -146,6 +137,9 @@ featurePlot(x=x, y=y, plot="density", scales=scales)
 # We are using the metric of "Accuracy" to evaluate models. This is a ratio
 # of the number of correctly predicted instances in divided by the total
 # number of instances in the dataset multiplied by 100 to give a percentage
+
+# 3 repeats of 10-fold cross validation
+# control <- trainControl(method="repeatedcv", number=10, repeats=3)
 control = trainControl(method="cv", number=10)
 metric = "Accuracy"
 
@@ -168,39 +162,33 @@ metric = "Accuracy"
 # performed using exactly the same data splits. 
 # It ensures the results are directly comparable.
 #
-# a) linear algorithms
-set.seed(7)
-fit.lda = train(num~., data=dataset, method="lda", metric=metric, trControl=control, na.action=na.omit)
-# b) nonlinear algorithms
-# CART
-set.seed(7)
-fit.cart <- train(num~., data=dataset, method="rpart", metric=metric, trControl=control, na.action=na.omit)
-# kNN
-set.seed(7)
-fit.knn <- train(num~., data=dataset, method="knn", metric=metric, trControl=control, na.action=na.omit)
-# c) advanced algorithms
+# basically set.seed() function will help to reuse the same set of random
+# variables , which we may need in future to again evaluate particular
+# task again with same random varibales.
+# We just need to declare it before using any random numbers generating function.
+#
 # SVM
 set.seed(7)
-fit.svm <- train(num~., data=dataset, method="svmRadial", metric=metric, trControl=control, na.action=na.omit)
+fit.svm <- train(num~., data=dataset, method="svmRadial", metric=metric, trControl=control)
 # Random Forest
 set.seed(7)
-fit.rf <- train(num~., data=dataset, method="rf", metric=metric, trControl=control, na.action=na.omit)
-# Reti neurali
+fit.rf <- train(num~., data=dataset, method="rf", metric=metric, trControl=control)
+# Neural Network
 set.seed(7)
-fit.nnet <- train(num~., data=dataset, method="nnet", metric=metric, trControl=control, na.action=na.omit)
+fit.nnet <- train(num~., data=dataset, method="nnet", metric=metric, trControl=control)
 # Naive bayes
 set.seed(7)
-fit.nb <- train(num~., data=dataset, method="nb", metric=metric, trControl=control, na.action=na.omit)
+fit.nb <- train(num~., data=dataset, method="nb", metric=metric, trControl=control)
 
-
-y# Select Best Model
+# Select Best Model
 # We now have 5 models and accuracy estimations for each. 
 # We need to compare the models to each other and select the most accurate.
 # We can report on the accuracy of each model by first creating a list of 
 # the created models and using the summary function.
 #
 # We can see the accuracy of each classifier and also other metrics like Kappa
-results = resamples(list(lda=fit.lda, cart=fit.cart, knn=fit.knn, svm=fit.svm, rf=fit.rf, nnet=fit.nnet, nb=fit.nb))
+list_models = list(svm=fit.svm, rf=fit.rf, nnet=fit.nnet, nb=fit.nb)
+results = resamples(list_models)
 summary(results)
 
 # We can also create a plot of the model evaluation results and compare the
@@ -209,13 +197,32 @@ summary(results)
 # (10 fold cross validation).
 dotplot(results)
 
+# We get the model with best accurancy
+maxAcc = 0
+for(item in list_models){
+  meanAcc = mean(item[["resample"]][["Accuracy"]])
+  if(meanAcc>maxAcc){
+    maxAcc=meanAcc
+    bestModel=item
+  }
+}
+
 # We can see that the most accurate model in this case was SVM
 # The results for just the SVM model can be summarized
 # summarize Best Model
-print(fit.svm)
+print(bestModel)
+
+# save the model to disk
+saveRDS(bestModel, "./final_model.rds")
+
+# later...
+
+# load the model
+super_model <- readRDS("./final_model.rds")
+print(super_model)
   
 # Make Predictions
-# The SVM was the most accurate model. Now we want to get an idea of the
+# Now we want to get an idea of the
 # accuracy of the model on our validation set.
 #
 # This will give us an independent final check on the accuracy of the best 
@@ -223,13 +230,13 @@ print(fit.svm)
 # slip during such as overfitting to the training set or a data leak. 
 # Both will result in an overly optimistic result.
 #
-# We can run the SVM model directly on the validation set and summarize the
+# We can run the model directly on the validation set and summarize the
 # results in a confusion matrix.
 #
 # We can see that the accuracy is 100%. 
 # It was a small validation dataset (20%), but this result is within
 # our expected margin of 97% +/-4% suggesting we may have an accurate
 # and a reliably (affidabile) accurate model.  
-predictions = predict(fit.svm, validation)
+predictions = predict(super_model, validation)
 confusionMatrix(predictions, validation$num)
 
