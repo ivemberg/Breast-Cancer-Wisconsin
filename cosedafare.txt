@@ -1,7 +1,0 @@
-1)trasformazione attributo sesso da 0,1 a charachter maschio, femmina
-
-
-2) ho verificato che eseguiamo la 10 cross validation, volendo si puo fare 3 corss validation
-3) ho converito la riga del sex in male e female con character come tipo
-4) ho scritto una funzione che seleziona il modello migliore
-4) e viene salvato il modello migliore

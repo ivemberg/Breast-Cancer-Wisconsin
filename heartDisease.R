@@ -12,9 +12,19 @@
 #########################################
 
 # Set your workspace path
-# setwd("~/R/Machine Learning/ProgettoMachineLearning")
+setwd("~/R/Machine Learning/heartdisease")
+
 install.packages("caret")
+install.packages("FactoMineR")
+install.packages("factoextra") 
+install.packages("corrplot")
+install.packages("pROC") 
+library(gridExtra)
 library(caret)
+library(FactoMineR) 
+library(factoextra)
+library(corrplot)
+library(pROC)
 
 # Load Data
 # Attribute Information:
@@ -36,88 +46,155 @@ library(caret)
 #
 dataset = 
   read.csv(
-  url("https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"), 
-  header = FALSE,
-  na.strings = "?",
-  col.names = 
-    c("age",
-      "sex",
-      "cp",
-      "trestbps",
-      "chol",
-      "fbs",
-      "restecg",
-      "thalach",
-      "exang",
-      "oldpeak",
-      "slope",
-      "ca",
-      "thal",
-      "num"
-    )
+    "14.csv",
+    header = FALSE,
+    na.strings = "?",
+    fileEncoding="UTF-8-BOM",
+    sep=";",
+    dec=",",
+    col.names = c("age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal","target")
   )
 
-# to remove rows with null attribute values 
+# To remove rows with null attribute values
 dataset = dataset[complete.cases(dataset), ]
-# foctor for target attribute
-dataset$num[dataset$num > 0] = 1
-# FORSE MEGLIO NON TENERLO, errori con i grafici (in realta' non li abbiamo fatti)
-# convert 0, 1 in characthers to better describe
-# dataset$num = factor(dataset$num)
-# dataset$sex = ifelse(dataset$sex==0,'female','male')
 
-# create a list of 80% of the rows in the original dataset for training
-validation_index = createDataPartition(dataset$num, p=0.80, list=FALSE)
-# select 20% of the data for validation
-validation = dataset[-validation_index,]
-# use the remaining 80% of data to training and testing the models
-dataset = dataset[validation_index,]
+# Factor for attributeS
+dataset$target = ifelse(dataset$target>0, "YES", "NO")
+dataset$target = factor(dataset$target)
 
-# type of data
-class(dataset)
-# names of attributes
+#dataset$sex = ifelse(dataset$sex==0,'FEMALE','MALE')
+#dataset$sex = factor(dataset$sex)
+#dataset$exang = ifelse(dataset$exang==1,'YES','NO')
+#dataset$exang = factor(dataset$exang)
+#dataset$cp = ifelse(dataset$cp == 1, "ATYPICAL ANGINA", ifelse(dataset$cp == 2, "NON-ANGINAL PAIN", "ASYMPTOMATIC"))
+#dataset$cp = factor(dataset$cp)
+#dataset$restecg = ifelse(dataset$restecg == 0, "NORMAL", ifelse(dataset$restecg == 1, "ABNORMALITY", "PROBABLE OR DEFINIT"))
+#dataset$restecg = factor(dataset$restecg)
+
+
+# Names of attributes
 names(dataset)
-# dimensions of dataset
+# Dimensions of dataset
 dim(dataset)
-# list types for each attribute
+# List types for each attribute
 sapply(dataset, class)
-# take a peek (dare un'occhiata) at the first 5 rows of the data
+# Take a peek (dare un'occhiata) at the first 5 rows of the data
 head(dataset)
+
+# PCA
+# Target distribution
+ggplot(dataset, aes(x=dataset$target, fill=dataset$target)) + 
+  geom_bar() +
+  xlab("Presenza di cardiopatia") +
+  ylab("Num. di casi") +
+  ggtitle("Distribuzione del target") +
+  scale_fill_discrete(name = "Cardiopatia", labels = c("NO", "YES"))
+
+# If issue overlap plot -> dev.off()
+
+# Age distribution
+ggplot(dataset, aes(x=dataset$sex, fill=dataset$sex)) + 
+  geom_bar() +
+  xlab("Presenza di cardiopatia") +
+  ylab("Num. di casi") +
+  ggtitle("Distribuzione del sex") +
+  scale_fill_discrete(name = "Cardiopatia", labels = c("FEMALE", "MALE"))
+
+
+hist(dataset$age, main="Età del paziente", xlab = "Anni") 
+
+# Correlation
+corr = cor(dataset[,1:13])
+corrplot(corr,type="lower",title = "correlation of variable",tl.col=1,tl.cex=0.7)
+
+# PCA
+#divido il subset individuando un numero di righe e colonne "attive" nella PCA
+#e altre righe + colonne individueranno degli individui supplementari che saranno predetti dalla PCA
+dataset.active = dataset[, 1:13]
+
+#le variabili sono scalate, sopratutto se sono misurate in scale diverse
+#la funziona PCA() le standardizza automaticamente
+pca <- PCA(dataset.active, scale.unit = TRUE, ncp = 7, graph = TRUE) #ncp è il numero di dimensioni finali
+
+#interpretazione della PCA
+#gli autovalori misurano la quantità di variazione mantenuta da ogni componente principale (sono piÃ¹ grandi per i primi)
+#I primi PC corrispondono alle direzioni con la massima quantità di variazione nel dataset
+#Esaminiamo gli autovalori per determinare il numero di PC da considerare (autovalori e proporzione di varianza, ossia informazioni contenute)
+eig.val = get_eigenvalue(pca)
+#osserviamo che il 55% delle variazioni sono spiegate dai primi 4 autovalori
+eig.val 
+
+#Un autovalore > 1 indica che il PC rappresenta una varianza maggiore rispetto a una delle variabili originali 
+#nei dati standardizzati. Questo Ã¨ comunemente usato come punto di interruzione per il quale i PC vengono conservati
+#Visualizzo graficamente gli autovalori
+fviz_eig(pca, addlabels = TRUE, ylim = c(0,25))
+
+#Estraggo i risultati - VARIABILI
+var = get_pca_var(pca)
+
+#la correlazione fra una variabile e un PCA¨ usata come coordinata della variabile sulla PC
+head(var$coord, 5)
+
+fviz_pca_var(pca, col.var = "red")
+
+corrplot(var$contrib, is.corr=FALSE)   
+p1 <- fviz_contrib(pca, choice="var", axes=1, fill="pink", color="grey", top=10)
+p2 <- fviz_contrib(pca, choice="var", axes=2, fill="skyblue", color="grey", top=10)
+p3 <- fviz_contrib(pca, choice="var", axes=3, fill="pink", color="grey", top=10)
+p4 <- fviz_contrib(pca, choice="var", axes=4, fill="skyblue", color="grey", top=10)
+p5 <- fviz_contrib(pca, choice="var", axes=5, fill="pink", color="grey", top=10)
+p6 <- fviz_contrib(pca, choice="var", axes=6, fill="skyblue", color="grey", top=10)
+p7 <- fviz_contrib(pca, choice="var", axes=7, fill="pink", color="grey", top=10)
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,ncol=4)
+
+#le variabili correlate positivamente sono raggruppate insieme 
+#(fbs, chol, trestbps, restecg, age, ca)
+#(sex, thal, exang, cp, slope, oldpeak)
+
+#le variabili correlate negativamente sono posizionate in quadranti opposti
+#slope e thalach? o thalach e tutte quelle nel quadrante di slope?
+
+#la distanza fra variabile e origine misura la qualitÃ  delle variabili (piÃ¹ sono lontante, meglio sono rappresentate)
+#es. thal 
+
+#INDIVIDUALS
+#coordinate, correlazione fra individuals e assi, cos2 e contribuzione
+ind = get_pca_ind(pca)
+ind
+fviz_pca_ind(pca, col.ind = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
+
+############################################
+# create a list of 80% of the rows in the original dataset for training
+validation_index = createDataPartition(dataset$target, p=0.80, list=FALSE)
+# select 20% of the data for validation
+testset = dataset[-validation_index,]
+# use the remaining 80% of data to training and testing the models
+trainset = dataset[validation_index,]
+
+# names of attributes
+names(trainset)
+# dimensions of dataset
+dim(trainset)
+# list types for each attribute
+sapply(trainset, class)
+# take a peek (dare un'occhiata) at the first 5 rows of the data
+head(trainset)
 
 # summarize the class distribution
 # Let's now take a look at the number of instances (rows) that belong to each
 # class. We can view this as an absolute count and as a percentage.
-percentage = prop.table(table(dataset$num)) * 100
-cbind(freq=table(dataset$num), percentage=percentage)
+percentage = prop.table(table(trainset$target)) * 100
+cbind(freq=table(trainset$target), percentage=percentage)
 
 # summarize attribute distributions
 # Now we can take a look at a summary of each attribute.
 # This includes the mean, the min and max values as well as some 
 # percentiles (25th, 50th or media and 75th e.g. values at this points if 
 # we ordered all the values for an attribute).
-summary(dataset)
-
-# We are going to look at two types of plots:
-# 1.Univariate plots to better understand each attribute.
-# split input and output
-x <- dataset[,1:13]
-y <- dataset[,14]
-# boxplot for each attribute on one image
-par(mfrow=c(1,4))
-for(i in 1:4) {
-  boxplot(x[,i], main=names(dataset)[i])
-}
-
-# barplot for class breakdown (generally uninteresting in this 
-# case because they're even).
-plot(y)
-
-# density plots for each attribute by class value
-# Like the boxplots, we can see the difference in distribution of each 
-# attribute by class value. We can also see the Gaussian-like distribution 
-# (bell curve) of each attribute.
-scales = list(x=list(relation="free"), y=list(relation="free"))
-featurePlot(x=x, y=y, plot="density", scales=scales)
+summary(trainset)
 
 # Evaluate Some Algorithms
 # Now it is time to create some models of the data and estimate their accuracy
@@ -139,8 +216,7 @@ featurePlot(x=x, y=y, plot="density", scales=scales)
 # number of instances in the dataset multiplied by 100 to give a percentage
 
 # 3 repeats of 10-fold cross validation
-# control <- trainControl(method="repeatedcv", number=10, repeats=3)
-control = trainControl(method="cv", number=10)
+control = trainControl(method="repeatedcv", number=10, repeats=3)
 metric = "Accuracy"
 
 # Build Models
@@ -167,18 +243,17 @@ metric = "Accuracy"
 # task again with same random varibales.
 # We just need to declare it before using any random numbers generating function.
 #
+# Random Forest
+# set.seed(7)
+# fit.rf <- train(num~., data=trainset, method="rf", metric=metric, trControl=control)
+
 # SVM
 set.seed(7)
-fit.svm <- train(num~., data=dataset, method="svmRadial", metric=metric, trControl=control)
-# Random Forest
-set.seed(7)
-fit.rf <- train(num~., data=dataset, method="rf", metric=metric, trControl=control)
+fit.svm <- train(target~., data=trainset, method="svmRadial", metric=metric, trControl=control)
+
 # Neural Network
 set.seed(7)
-fit.nnet <- train(num~., data=dataset, method="nnet", metric=metric, trControl=control)
-# Naive bayes
-set.seed(7)
-fit.nb <- train(num~., data=dataset, method="nb", metric=metric, trControl=control)
+fit.nnet <- train(target~., data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
 
 # Select Best Model
 # We now have 5 models and accuracy estimations for each. 
@@ -187,7 +262,7 @@ fit.nb <- train(num~., data=dataset, method="nb", metric=metric, trControl=contr
 # the created models and using the summary function.
 #
 # We can see the accuracy of each classifier and also other metrics like Kappa
-list_models = list(svm=fit.svm, rf=fit.rf, nnet=fit.nnet, nb=fit.nb)
+list_models = list(svm=fit.svm, nnet=fit.nnet)
 results = resamples(list_models)
 summary(results)
 
@@ -237,6 +312,50 @@ print(super_model)
 # It was a small validation dataset (20%), but this result is within
 # our expected margin of 97% +/-4% suggesting we may have an accurate
 # and a reliably (affidabile) accurate model.  
-predictions = predict(super_model, validation)
-confusionMatrix(predictions, validation$num)
+predictions = predict(super_model, testset)
+confusionMatrix(predictions, testset$target)
+
+#####################################################
+#####################################################
+control = trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE, summaryFunction = twoClassSummary)
+metric = "ROC"
+
+# SVM
+set.seed(7)
+fit.svm <- train(target~., data=trainset, method="svmRadial", metric=metric, trControl=control)
+
+# Neural Network
+set.seed(7)
+fit.nnet <- train(target~., data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
+
+# Make Predictions
+svm.probs = predict(fit.svm, testset, type = "prob")
+nnet.probs = predict(fit.nnet, testset, type = "prob")
+
+# Generate the ROC curve of each model, and plot the curve on the same figure
+svm.ROC = roc(testset$target, svm.probs$YES, levels=levels(testset$target), direction = "<")
+plot(svm.ROC, print.thres="best", col="orange")
+
+nnet.ROC = roc(testset$target, nnet.probs$YES, levels=levels(testset$target), direction = "<")
+plot(nnet.ROC, print.thres="best", add=TRUE, col="red")
+
+# To compare the AUC
+svm.ROC
+nnet.ROC 
+
+# We can also compare the statistics of the generated performance measure
+cv.values = resamples(list(svm=fit.svm, nnet = fit.nnet)) 
+summary(cv.values) 
+
+# Use dotplot to plot the results in the ROC metric
+dotplot(cv.values, metric = "ROC") 
+
+# Or the bwplot 
+bwplot(cv.values, layout = c(3, 1)) 
+
+# Or the splom plot
+splom(cv.values,metric="ROC") 
+
+# We can also take into account the timings required for training the models
+cv.values$timings
 
