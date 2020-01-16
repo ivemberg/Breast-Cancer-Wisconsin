@@ -105,7 +105,7 @@ hist(dataset$age, main="Età del paziente", xlab = "Anni")
 
 # Correlation
 corr = cor(dataset[,1:13])
-corrplot(corr,type="lower",title = "correlation of variable",tl.col=1,tl.cex=0.7)
+corrplot(corr,type="lower",title = "Correlazione delle variabili",tl.col=1,tl.cex=0.7)
 
 # PCA
 #divido il subset individuando un numero di righe e colonne "attive" nella PCA
@@ -359,3 +359,9 @@ splom(cv.values,metric="ROC")
 # We can also take into account the timings required for training the models
 cv.values$timings
 
+realvalues = testset[,14]
+prova <- confusionMatrix(predictions, realvalues, mode="prec_recall", positive = "YES")
+prova
+prova$byClass["Precision"]
+prova$byClass["Recall"]
+prova$byClass["F1"]
