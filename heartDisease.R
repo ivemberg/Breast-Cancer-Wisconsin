@@ -12,9 +12,19 @@
 #########################################
 
 # Set your workspace path
-setwd("~/R/Machine Learning/ProgettoMachineLearning")
+setwd("~/Desktop/heartdisease")
+
 install.packages("caret")
+install.packages("FactoMineR")
+install.packages("factoextra") 
+install.packages("corrplot")
+install.packages("pROC") 
+library(gridExtra)
 library(caret)
+library(FactoMineR) 
+library(factoextra)
+library(corrplot)
+library(pROC)
 
 # Load Data
 # Attribute Information:
@@ -34,119 +44,127 @@ library(caret)
 #51 (thal)
 #58 (num) (the predicted attribute)
 #
-# riga 288 aveva un valore ? cioe null
-# na.strings = "NULL"
-# convertire num in factor colClasses=c("num"="factor") per
-# visualizzare il dataset con l'intenzione di non fare una multiclassificazione
-# e non una regressione
-# 
-# usiamo na.action=na.omit per omettere le righe contenenti null
-#
-# Error in table "all arguments must have the same length"
-# per ora eliminiamo tutti i valori null
-#
 dataset = 
   read.csv(
-  url("https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"), 
-  header = FALSE,
-  na.strings = "?",
-  #colClasses=c("num"="factor"),
-  #skipNul = TRUE,
-  col.names = 
-    c("age",
-      "sex",
-      "cp",
-      "trestbps",
-      "chol",
-      "fbs",
-      "restecg",
-      "thalach",
-      "exang",
-      "oldpeak",
-      "slope",
-      "ca",
-      "thal",
-      "num"
-    )
+    "14.csv",
+    header = FALSE,
+    na.strings = "?",
+    fileEncoding="UTF-8-BOM",
+    sep=";",
+    dec=",",
+    col.names = c("age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal","target")
   )
 
-# to remove nul
+# To remove rows with null attribute values
 dataset = dataset[complete.cases(dataset), ]
-dataset$num[dataset$num > 0] = 1
-dataset$num <- factor(dataset$num)
+
+# Factor for attributeS
+dataset$target = ifelse(dataset$target>0, "YES", "NO")
+dataset$target = factor(dataset$target)
+
+# Names of attributes
+names(dataset)
+# Dimensions of dataset
+dim(dataset)
+# List types for each attribute
+sapply(dataset, class)
+# Take a peek (dare un'occhiata) at the first 5 rows of the data
+head(dataset)
+
+# PCA
+# Target distribution
+ggplot(dataset, aes(x=dataset$target, fill=dataset$target)) + 
+  geom_bar() +
+  xlab("Presence of heart dieseas") +
+  ylab("Num. of cases") +
+  ggtitle("Distribution of target") +
+  scale_fill_discrete(name = "Heart diseases", labels = c("NO", "YES"))
+
+# Age distribution
+ggplot(dataset, aes(x=dataset$sex, fill=dataset$sex)) + 
+  geom_bar() +
+  xlab("Presence of heart dieseas") +
+  ylab("Num. of cases") +
+  ggtitle("Distribution of sex") +
+  scale_fill_discrete(name = "Heart diseases", labels = c("FEMALE", "MALE"))
+
+
+hist(dataset$age, main="Patient's age", xlab = "Years") 
+
+# Correlation
+corr = cor(dataset[,1:13])
+corrplot(corr,type="lower",title = "Correlation of variables",tl.col=1,tl.cex=0.7)
+
+# PCA
+dataset.active = dataset[, 1:13]
+pca <- PCA(dataset.active, scale.unit = TRUE, ncp = 7, graph = TRUE) #ncp ? il numero di dimensioni finali
+
+#Examinate the PCA's result with the eigenvalues
+#
+#Eigenvalues
+eig.val = get_eigenvalue(pca)
+eig.val 
+
+#Graphical representation of eigenvalues
+fviz_eig(pca, addlabels = TRUE, ylim = c(0,25))
+
+#Variables extraction
+var = get_pca_var(pca)
+head(var$coord, 5)
+
+#Graphical representation of PCA's variables
+fviz_pca_var(pca, col.var = "red")
+
+#Dimension's study
+corrplot(var$contrib, is.corr=FALSE)   
+p1 <- fviz_contrib(pca, choice="var", axes=1, fill="pink", color="grey", top=10)
+p2 <- fviz_contrib(pca, choice="var", axes=2, fill="skyblue", color="grey", top=10)
+p3 <- fviz_contrib(pca, choice="var", axes=3, fill="pink", color="grey", top=10)
+p4 <- fviz_contrib(pca, choice="var", axes=4, fill="skyblue", color="grey", top=10)
+p5 <- fviz_contrib(pca, choice="var", axes=5, fill="pink", color="grey", top=10)
+p6 <- fviz_contrib(pca, choice="var", axes=6, fill="skyblue", color="grey", top=10)
+p7 <- fviz_contrib(pca, choice="var", axes=7, fill="pink", color="grey", top=10)
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,ncol=4)
+
+#Individuals
+ind = get_pca_ind(pca)
+ind
+fviz_pca_ind(pca, col.ind = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
 
 # create a list of 80% of the rows in the original dataset for training
-validation_index = createDataPartition(dataset$num, p=0.80, list=FALSE)
+validation_index = createDataPartition(dataset$target, p=0.80, list=FALSE)
 # select 20% of the data for validation
-validation = dataset[-validation_index,]
+testset = dataset[-validation_index,]
 # use the remaining 80% of data to training and testing the models
-dataset = dataset[validation_index,]
+trainset = dataset[validation_index,]
 
-# type of data
-class(dataset)
 # names of attributes
-names(dataset)
+names(trainset)
 # dimensions of dataset
-dim(dataset)
+dim(trainset)
 # list types for each attribute
-sapply(dataset, class)
+sapply(trainset, class)
 # take a peek (dare un'occhiata) at the first 5 rows of the data
-head(dataset)
+head(trainset)
 
 # summarize the class distribution
 # Let's now take a look at the number of instances (rows) that belong to each
 # class. We can view this as an absolute count and as a percentage.
-percentage = prop.table(table(dataset$num)) * 100
-cbind(freq=table(dataset$num), percentage=percentage)
+percentage = prop.table(table(trainset$target)) * 100
+cbind(freq=table(trainset$target), percentage=percentage)
 
 # summarize attribute distributions
 # Now we can take a look at a summary of each attribute.
 # This includes the mean, the min and max values as well as some 
 # percentiles (25th, 50th or media and 75th e.g. values at this points if 
 # we ordered all the values for an attribute).
-summary(dataset)
+summary(trainset)
 
-# We are going to look at two types of plots:
-# 1.Univariate plots to better understand each attribute.
-# split input and output
-x <- dataset[,1:13]
-y <- dataset[,14]
-# boxplot for each attribute on one image
-par(mfrow=c(1,4))
-for(i in 1:4) {
-  boxplot(x[,i], main=names(dataset)[i])
-}
-
-# barplot for class breakdown (generally uninteresting in this 
-# case because they're even).
-plot(y)
-
-# density plots for each attribute by class value
-# Like the boxplots, we can see the difference in distribution of each 
-# attribute by class value. We can also see the Gaussian-like distribution 
-# (bell curve) of each attribute.
-scales = list(x=list(relation="free"), y=list(relation="free"))
-featurePlot(x=x, y=y, plot="density", scales=scales)
-
-# Evaluate Some Algorithms
-# Now it is time to create some models of the data and estimate their accuracy
-# on unseen data.
-# Here is what we are going to cover in this step:
-# 1.Set-up the test harness to use 10-fold cross validation.
-# 2.build 5 different models to predict species from flower measurements
-# 3.Select the best model.
-
-# Test Harness
-# We will use 10-fold crossvalidation to estimate accuracy.
-# This will split our dataset into 10 parts, train in 9 and test on 1 
-# and release for all combinations of train-test splits. We will also repeat
-# the process 3 times for each algorithm with different splits of the data
-# into 10 groups, in an effort to get a more accurate estimate.
-#
-# We are using the metric of "Accuracy" to evaluate models. This is a ratio
-# of the number of correctly predicted instances in divided by the total
-# number of instances in the dataset multiplied by 100 to give a percentage
-control = trainControl(method="cv", number=10)
+#10-fold cross validation with 3 repeats
+control = trainControl(method="repeatedcv", number=10, repeats=3)
 metric = "Accuracy"
 
 # Build Models
@@ -155,52 +173,37 @@ metric = "Accuracy"
 # classes are partially linearly separable in some dimensions, so we are 
 # expecting generally good results.
 #
-# Let's evaluate 5 different algorithms:
-# 1.Linear Discriminant Analysis (LDA)
-# 2.Classification and Regression Trees (CART).
-# 3.k-Nearest Neighbors (kNN).
-# 4.Support Vector Machines (SVM) with a linear kernel.
-# 5.Random Forest (RF)
+# Let's evaluate 2 different algorithms:
+# 1.Support Vector Machines (SVM) with a linear kernel.
+# 2.Neural Network (NNET)
 #
-# This is a good mix of simple linear (LDA), nonlinear (CART, kNN) and
-# complex nonlinear methods (SVM, RF). We reset the random number seed 
+# They are complex nonlinear methods (SVM, NNET). We reset the random number seed 
 # before reach run to ensure that the evaluation of each algorithm is 
 # performed using exactly the same data splits. 
 # It ensures the results are directly comparable.
 #
-# a) linear algorithms
-set.seed(7)
-fit.lda = train(num~., data=dataset, method="lda", metric=metric, trControl=control, na.action=na.omit)
-# b) nonlinear algorithms
-# CART
-set.seed(7)
-fit.cart <- train(num~., data=dataset, method="rpart", metric=metric, trControl=control, na.action=na.omit)
-# kNN
-set.seed(7)
-fit.knn <- train(num~., data=dataset, method="knn", metric=metric, trControl=control, na.action=na.omit)
-# c) advanced algorithms
+# basically set.seed() function will help to reuse the same set of random
+# variables , which we may need in future to again evaluate particular
+# task again with same random varibales.
+# We just need to declare it before using any random numbers generating function.
+
 # SVM
 set.seed(7)
-fit.svm <- train(num~., data=dataset, method="svmRadial", metric=metric, trControl=control, na.action=na.omit)
-# Random Forest
-set.seed(7)
-fit.rf <- train(num~., data=dataset, method="rf", metric=metric, trControl=control, na.action=na.omit)
-# Reti neurali
-set.seed(7)
-fit.nnet <- train(num~., data=dataset, method="nnet", metric=metric, trControl=control, na.action=na.omit)
-# Naive bayes
-set.seed(7)
-fit.nb <- train(num~., data=dataset, method="nb", metric=metric, trControl=control, na.action=na.omit)
+fit.svm <- train(target~., data=trainset, method="svmRadial", metric=metric, trControl=control)
 
+# Neural Network
+set.seed(7)
+fit.nnet <- train(target~., data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
 
-y# Select Best Model
-# We now have 5 models and accuracy estimations for each. 
+# Select Best Model
+# We now have 2 models and accuracy estimations for each. 
 # We need to compare the models to each other and select the most accurate.
 # We can report on the accuracy of each model by first creating a list of 
 # the created models and using the summary function.
 #
 # We can see the accuracy of each classifier and also other metrics like Kappa
-results = resamples(list(lda=fit.lda, cart=fit.cart, knn=fit.knn, svm=fit.svm, rf=fit.rf, nnet=fit.nnet, nb=fit.nb))
+list_models = list(svm=fit.svm, nnet=fit.nnet)
+results = resamples(list_models)
 summary(results)
 
 # We can also create a plot of the model evaluation results and compare the
@@ -209,13 +212,32 @@ summary(results)
 # (10 fold cross validation).
 dotplot(results)
 
+# We get the model with best accurancy
+maxAcc = 0
+for(item in list_models){
+  meanAcc = mean(item[["resample"]][["Accuracy"]])
+  if(meanAcc>maxAcc){
+    maxAcc=meanAcc
+    bestModel=item
+  }
+}
+
 # We can see that the most accurate model in this case was SVM
 # The results for just the SVM model can be summarized
 # summarize Best Model
-print(fit.svm)
+print(bestModel)
+
+# save the model to disk
+saveRDS(bestModel, "./final_model.rds")
+
+# later...
+
+# load the model
+super_model <- readRDS("./final_model.rds")
+print(super_model)
   
 # Make Predictions
-# The SVM was the most accurate model. Now we want to get an idea of the
+# Now we want to get an idea of the
 # accuracy of the model on our validation set.
 #
 # This will give us an independent final check on the accuracy of the best 
@@ -223,13 +245,61 @@ print(fit.svm)
 # slip during such as overfitting to the training set or a data leak. 
 # Both will result in an overly optimistic result.
 #
-# We can run the SVM model directly on the validation set and summarize the
+# We can run the model directly on the validation set and summarize the
 # results in a confusion matrix.
 #
-# We can see that the accuracy is 100%. 
-# It was a small validation dataset (20%), but this result is within
-# our expected margin of 97% +/-4% suggesting we may have an accurate
-# and a reliably (affidabile) accurate model.  
-predictions = predict(fit.svm, validation)
-confusionMatrix(predictions, validation$num)
+# We can see that the accuracy is 83% with a small validation dataset
+predictions = predict(super_model, testset)
+confusionMatrix(predictions, testset$target)
+
+#Set up the training control
+control = trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE, summaryFunction = twoClassSummary)
+metric = "ROC"
+
+# SVM
+set.seed(7)
+fit.svm <- train(target~., data=trainset, method="svmRadial", metric=metric, trControl=control)
+
+# Neural Network
+set.seed(7)
+fit.nnet <- train(target~., data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
+
+# Make Predictions
+svm.probs = predict(fit.svm, testset, type = "prob")
+nnet.probs = predict(fit.nnet, testset, type = "prob")
+
+# Generate the ROC curve of each model, and plot the curve on the same figure
+svm.ROC = roc(testset$target, svm.probs$YES, levels=levels(testset$target), direction = "<")
+plot(svm.ROC, print.thres="best", col="orange")
+
+nnet.ROC = roc(testset$target, nnet.probs$YES, levels=levels(testset$target), direction = "<")
+plot(nnet.ROC, print.thres="best", add=TRUE, col="red")
+
+# To compare the AUC
+svm.ROC
+nnet.ROC 
+
+# We can also compare the statistics of the generated performance measure
+cv.values = resamples(list(svm=fit.svm, nnet = fit.nnet)) 
+summary(cv.values) 
+
+# Use dotplot to plot the results in the ROC metric
+dotplot(cv.values, metric = "ROC") 
+
+# Or the bwplot 
+bwplot(cv.values, layout = c(3, 1)) 
+
+# Or the splom plot
+splom(cv.values,metric="ROC") 
+
+# We can also take into account the timings required for training the models
+cv.values$timings
+
+#Precision, Recall an F1
+realvalues = testset[,14]
+classLabel <- confusionMatrix(predictions, realvalues, mode="prec_recall", positive = "YES")
+classLabel
+classLabel$byClass["Precision"]
+classLabel$byClass["Recall"]
+classLabelbyClass["F1"]
 
