@@ -12,7 +12,11 @@
 #########################################
 
 # Set your workspace path
+<<<<<<< HEAD
 setwd("~/Desktop/heartdisease")
+=======
+setwd("~/R/Machine Learning/heartdisease")
+>>>>>>> 85124a711ecf71ef3fcba6aeb497b03cc6cc286b
 
 install.packages("caret")
 install.packages("FactoMineR")
@@ -57,6 +61,7 @@ dataset =
 
 # To remove rows with null attribute values
 dataset = dataset[complete.cases(dataset), ]
+<<<<<<< HEAD
 
 # Factor for attributeS
 dataset$target = ifelse(dataset$target>0, "YES", "NO")
@@ -133,7 +138,118 @@ ind
 fviz_pca_ind(pca, col.ind = "cos2",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE)
+=======
+>>>>>>> 85124a711ecf71ef3fcba6aeb497b03cc6cc286b
 
+# Factor for attributeS
+dataset$target = ifelse(dataset$target>0, "YES", "NO")
+dataset$target = factor(dataset$target)
+
+#dataset$sex = ifelse(dataset$sex==0,'FEMALE','MALE')
+#dataset$sex = factor(dataset$sex)
+#dataset$exang = ifelse(dataset$exang==1,'YES','NO')
+#dataset$exang = factor(dataset$exang)
+#dataset$cp = ifelse(dataset$cp == 1, "ATYPICAL ANGINA", ifelse(dataset$cp == 2, "NON-ANGINAL PAIN", "ASYMPTOMATIC"))
+#dataset$cp = factor(dataset$cp)
+#dataset$restecg = ifelse(dataset$restecg == 0, "NORMAL", ifelse(dataset$restecg == 1, "ABNORMALITY", "PROBABLE OR DEFINIT"))
+#dataset$restecg = factor(dataset$restecg)
+
+
+# Names of attributes
+names(dataset)
+# Dimensions of dataset
+dim(dataset)
+# List types for each attribute
+sapply(dataset, class)
+# Take a peek (dare un'occhiata) at the first 5 rows of the data
+head(dataset)
+
+# PCA
+# Target distribution
+ggplot(dataset, aes(x=dataset$target, fill=dataset$target)) + 
+  geom_bar() +
+  xlab("Presenza di cardiopatia") +
+  ylab("Num. di casi") +
+  ggtitle("Distribuzione del target") +
+  scale_fill_discrete(name = "Cardiopatia", labels = c("NO", "YES"))
+
+# If issue overlap plot -> dev.off()
+
+# Age distribution
+ggplot(dataset, aes(x=dataset$sex, fill=dataset$sex)) + 
+  geom_bar() +
+  xlab("Presenza di cardiopatia") +
+  ylab("Num. di casi") +
+  ggtitle("Distribuzione del sex") +
+  scale_fill_discrete(name = "Cardiopatia", labels = c("FEMALE", "MALE"))
+
+
+hist(dataset$age, main="Età del paziente", xlab = "Anni") 
+
+# Correlation
+corr = cor(dataset[,1:13])
+corrplot(corr,type="lower",title = "Correlazione delle variabili",tl.col=1,tl.cex=0.7)
+
+# PCA
+#divido il subset individuando un numero di righe e colonne "attive" nella PCA
+#e altre righe + colonne individueranno degli individui supplementari che saranno predetti dalla PCA
+dataset.active = dataset[, 1:13]
+
+#le variabili sono scalate, sopratutto se sono misurate in scale diverse
+#la funziona PCA() le standardizza automaticamente
+pca <- PCA(dataset.active, scale.unit = TRUE, ncp = 7, graph = TRUE) #ncp è il numero di dimensioni finali
+
+#interpretazione della PCA
+#gli autovalori misurano la quantità di variazione mantenuta da ogni componente principale (sono piÃ¹ grandi per i primi)
+#I primi PC corrispondono alle direzioni con la massima quantità di variazione nel dataset
+#Esaminiamo gli autovalori per determinare il numero di PC da considerare (autovalori e proporzione di varianza, ossia informazioni contenute)
+eig.val = get_eigenvalue(pca)
+#osserviamo che il 55% delle variazioni sono spiegate dai primi 4 autovalori
+eig.val 
+
+#Un autovalore > 1 indica che il PC rappresenta una varianza maggiore rispetto a una delle variabili originali 
+#nei dati standardizzati. Questo Ã¨ comunemente usato come punto di interruzione per il quale i PC vengono conservati
+#Visualizzo graficamente gli autovalori
+fviz_eig(pca, addlabels = TRUE, ylim = c(0,25))
+
+#Estraggo i risultati - VARIABILI
+var = get_pca_var(pca)
+
+#la correlazione fra una variabile e un PCA¨ usata come coordinata della variabile sulla PC
+head(var$coord, 5)
+
+fviz_pca_var(pca, col.var = "red")
+
+corrplot(var$contrib, is.corr=FALSE)   
+p1 <- fviz_contrib(pca, choice="var", axes=1, fill="pink", color="grey", top=10)
+p2 <- fviz_contrib(pca, choice="var", axes=2, fill="skyblue", color="grey", top=10)
+p3 <- fviz_contrib(pca, choice="var", axes=3, fill="pink", color="grey", top=10)
+p4 <- fviz_contrib(pca, choice="var", axes=4, fill="skyblue", color="grey", top=10)
+p5 <- fviz_contrib(pca, choice="var", axes=5, fill="pink", color="grey", top=10)
+p6 <- fviz_contrib(pca, choice="var", axes=6, fill="skyblue", color="grey", top=10)
+p7 <- fviz_contrib(pca, choice="var", axes=7, fill="pink", color="grey", top=10)
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,ncol=4)
+
+#le variabili correlate positivamente sono raggruppate insieme 
+#(fbs, chol, trestbps, restecg, age, ca)
+#(sex, thal, exang, cp, slope, oldpeak)
+
+#le variabili correlate negativamente sono posizionate in quadranti opposti
+#slope e thalach? o thalach e tutte quelle nel quadrante di slope?
+
+#la distanza fra variabile e origine misura la qualitÃ  delle variabili (piÃ¹ sono lontante, meglio sono rappresentate)
+#es. thal 
+
+#INDIVIDUALS
+#coordinate, correlazione fra individuals e assi, cos2 e contribuzione
+ind = get_pca_ind(pca)
+ind
+fviz_pca_ind(pca, col.ind = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
+
+############################################
 # create a list of 80% of the rows in the original dataset for training
 validation_index = createDataPartition(dataset$target, p=0.80, list=FALSE)
 # select 20% of the data for validation
@@ -163,7 +279,30 @@ cbind(freq=table(trainset$target), percentage=percentage)
 # we ordered all the values for an attribute).
 summary(trainset)
 
+<<<<<<< HEAD
 #10-fold cross validation with 3 repeats
+=======
+# Evaluate Some Algorithms
+# Now it is time to create some models of the data and estimate their accuracy
+# on unseen data.
+# Here is what we are going to cover in this step:
+# 1.Set-up the test harness to use 10-fold cross validation.
+# 2.build 5 different models to predict species from flower measurements
+# 3.Select the best model.
+
+# Test Harness
+# We will use 10-fold crossvalidation to estimate accuracy.
+# This will split our dataset into 10 parts, train in 9 and test on 1 
+# and release for all combinations of train-test splits. We will also repeat
+# the process 3 times for each algorithm with different splits of the data
+# into 10 groups, in an effort to get a more accurate estimate.
+#
+# We are using the metric of "Accuracy" to evaluate models. This is a ratio
+# of the number of correctly predicted instances in divided by the total
+# number of instances in the dataset multiplied by 100 to give a percentage
+
+# 3 repeats of 10-fold cross validation
+>>>>>>> 85124a711ecf71ef3fcba6aeb497b03cc6cc286b
 control = trainControl(method="repeatedcv", number=10, repeats=3)
 metric = "Accuracy"
 
@@ -186,6 +325,13 @@ metric = "Accuracy"
 # variables , which we may need in future to again evaluate particular
 # task again with same random varibales.
 # We just need to declare it before using any random numbers generating function.
+<<<<<<< HEAD
+=======
+#
+# Random Forest
+# set.seed(7)
+# fit.rf <- train(num~., data=trainset, method="rf", metric=metric, trControl=control)
+>>>>>>> 85124a711ecf71ef3fcba6aeb497b03cc6cc286b
 
 # SVM
 set.seed(7)
@@ -196,7 +342,11 @@ set.seed(7)
 fit.nnet <- train(target~., data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
 
 # Select Best Model
+<<<<<<< HEAD
 # We now have 2 models and accuracy estimations for each. 
+=======
+# We now have 5 models and accuracy estimations for each. 
+>>>>>>> 85124a711ecf71ef3fcba6aeb497b03cc6cc286b
 # We need to compare the models to each other and select the most accurate.
 # We can report on the accuracy of each model by first creating a list of 
 # the created models and using the summary function.
@@ -248,11 +398,23 @@ print(super_model)
 # We can run the model directly on the validation set and summarize the
 # results in a confusion matrix.
 #
+<<<<<<< HEAD
 # We can see that the accuracy is 83% with a small validation dataset
 predictions = predict(super_model, testset)
 confusionMatrix(predictions, testset$target)
 
 #Set up the training control
+=======
+# We can see that the accuracy is 100%. 
+# It was a small validation dataset (20%), but this result is within
+# our expected margin of 97% +/-4% suggesting we may have an accurate
+# and a reliably (affidabile) accurate model.  
+predictions = predict(super_model, testset)
+confusionMatrix(predictions, testset$target)
+
+#####################################################
+#####################################################
+>>>>>>> 85124a711ecf71ef3fcba6aeb497b03cc6cc286b
 control = trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE, summaryFunction = twoClassSummary)
 metric = "ROC"
 
@@ -294,6 +456,7 @@ splom(cv.values,metric="ROC")
 
 # We can also take into account the timings required for training the models
 cv.values$timings
+<<<<<<< HEAD
 
 #Precision, Recall an F1
 realvalues = testset[,14]
@@ -302,4 +465,12 @@ classLabel
 classLabel$byClass["Precision"]
 classLabel$byClass["Recall"]
 classLabelbyClass["F1"]
+=======
+>>>>>>> 85124a711ecf71ef3fcba6aeb497b03cc6cc286b
 
+realvalues = testset[,14]
+prova <- confusionMatrix(predictions, realvalues, mode="prec_recall", positive = "YES")
+prova
+prova$byClass["Precision"]
+prova$byClass["Recall"]
+prova$byClass["F1"]
