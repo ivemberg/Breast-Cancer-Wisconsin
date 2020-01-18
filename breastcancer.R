@@ -33,19 +33,34 @@ dataset = dataset[,-1]
 # Control presence of null value
 na_count <- sapply(dataset, function(y) sum(length(which(is.na(y)))))
 na_count <- data.frame(na_count)
+na_count # no null values
 
-# Names of attributes
+# Exploration of the dataset
 names(dataset)
-# Dimension of dataset
 dim(dataset)
-# List types for each attribute
 sapply(dataset, class)
-# Take a peek at the first 5 rows of the data
 head(dataset)
 summary(dataset)
 
-# Target distribution
-ggplot(dataset, aes(x=dataset$diagnosis, fill=dataset$diagnosis)) + 
+# Create Train (75% of the original rows) and Test (remaining 25% of the original rows) set
+index <- createDataPartition(dataset$diagnosis, p=0.75, list=FALSE)
+trainset <- dataset[ index,]
+testset <- dataset[-index,]
+
+# Exploration of the train set
+names(trainset)
+dim(trainset)
+sapply(trainset, class)
+head(trainset)
+summary(trainset)
+
+# Summary of the class distribution
+percentage = prop.table(table(trainset$diagnosis)) * 100
+cbind(freq=table(trainset$target), percentage=percentage)
+
+# Graphs
+
+ggplot(trainset, aes(x=trainset$diagnosis, fill=trainset$diagnosis)) + 
   geom_bar() +
   xlab("Malignant or Benign diagnosis") + 
   ylab("Num. of cases") +
@@ -55,19 +70,17 @@ ggplot(dataset, aes(x=dataset$diagnosis, fill=dataset$diagnosis)) +
 
 
 # Correlation
-corr = cor(dataset[,2:31])
+corr = cor(trainset[,2:31])
 corrplot(corr,type="lower",title = "Correlation of variables",tl.col=1,tl.cex=0.7)
 
-ggpairs(dataset, columns = 1:10, title = "titolo",  
-        axisLabels = "show", columnLabels = colnames(dataset[,1:10]))
+ggpairs(trainset, columns = 1:10, title = "titolo",  
+        axisLabels = "show", columnLabels = colnames(trainset[,1:10]))
 
 # PCA 
-dataset.active = dataset[, 2:31] #rimuovo il target
-pca <- PCA(dataset.active, scale.unit = TRUE, ncp = 10, graph = TRUE)
+trainset.pca = trainset[,2:31] 
+pca <- PCA(trainset.pca, scale.unit = TRUE, ncp = 10, graph = TRUE) 
 
 # Examinate the PCA's result with the eigenvalues
-#
-# Eigenvalues
 eig.val = get_eigenvalue(pca)
 eig.val
 
@@ -97,88 +110,65 @@ grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,ncol=5)
 
 # Individuals
 ind = get_pca_ind(pca)
-ind
 fviz_pca_ind(pca, col.ind = "cos2",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE)
 
-# Create a list of 75% of the rows in the original dataset for training
-index <- createDataPartition(dataset$diagnosis, p=0.75, list=FALSE)
-# Select 25% of the data for validation
-trainset <- dataset[ index,]
-# Use the remaining 75% of data to training and testing the models
-testset <- dataset[-index,]
+# Model applicated only on 10 attributes choosen after PCA
+subTrain = diagnosis~concave.points_mean+fractal_dimension_mean+texture_se+texture_worst+
+  smoothness_mean+symmetry_worst+fractal_dimension_worst+smoothness_se+concavity_se+symmetry_mean
 
-# Names of attributes
-names(trainset)
-# Dimensions of dataset
-dim(trainset)
-# List types for each attribute
-sapply(trainset, class)
-# Take a peek (dare un'occhiata) at the first 5 rows of the data
-head(trainset)
-
-# Summarize the class distribution
-percentage = prop.table(table(trainset$diagnosis)) * 100
-cbind(freq=table(trainset$target), percentage=percentage)
-
-# Summarize attribute distributions
-summary(trainset)
 
 # 10-fold cross validation with 3 repeats
 control = trainControl(method="repeatedcv", number=10, repeats = 3)
 metric = "Accuracy"
 
-# Model applicated only on 10 attributes choosen after PCA
-subAttr = diagnosis~concave.points_mean+fractal_dimension_mean+texture_se+texture_worst+
-  smoothness_mean+symmetry_worst+fractal_dimension_worst+smoothness_se+concavity_se+symmetry_mean
-
 # SVM
 set.seed(7)
-fit.svm <- train(subAttr, data=trainset, method="svmRadial", metric=metric, trControl=control)
+fit.svm <- train(subTrain, data=trainset, method="svmRadial", metric=metric, trControl=control)
 # Neural networks
 set.seed(7)
-fit.nnet <- train(subAttr, data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
+fit.nnet <- train(subTrain, data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
 
-# Accurancy
+# Accuracy
 list_models = list(svm=fit.svm, nnet=fit.nnet)
 results = resamples(list_models)
 summary(results)
 
-# Plot of the model evaluation results and compare the
+# Plot of the model evaluation results and comparison of the
 # spread and the mean accuracy of each model.
 dotplot(results)
 
-# Predictions (accuracy of the model on our validation set)
+# Predictions SVM (accuracy of the model on our validation set)
 predictions_svm = predict(fit.svm, testset)
 
-# Predictions (accuracy of the model on our validation set)
+# Predictions NNET (accuracy of the model on our validation set)
 predictions_nnet = predict(fit.nnet, testset)
 
-# We get the model with best accurancy
+# Take the model with the best accurancy
 maxAcc = 0
 for(item in list_models){
   meanAcc = mean(item[["resample"]][["Accuracy"]])
   if(meanAcc>maxAcc){
     maxAcc=meanAcc
-    bestModel=item
+    finalModel=item
   }
 }
 
-# Summarize Best Model
-print(bestModel)
+# Summary of the best model
+print(finalModel)
 
 # Save the model to disk
-saveRDS(bestModel, "./final_model.rds")
+saveRDS(finalModel, "./finalModel.rds")
 
 # later...
 
 # Load the model
-super_model <- readRDS("./final_model.rds")
-print(super_model)
+bestModel <- readRDS("./finalModel.rds")
+print(bestModel)
 
 # Predictions (accuracy of the model on our validation set)
-predictions = predict(super_model, testset)
+predictions = predict(bestModel, testset)
 confusionMatrix(predictions, testset$diagnosis)
 
 #Set up the training control
@@ -187,11 +177,11 @@ metric = "ROC"
 
 # SVM
 set.seed(7)
-fit.svm <- train(subAttr, data=trainset, method="svmRadial", metric=metric, trControl=control)
+fit.svm <- train(subTrain, data=trainset, method="svmRadial", metric=metric, trControl=control)
 
 # Neural Network
 set.seed(7)
-fit.nnet <- train(subAttr, data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
+fit.nnet <- train(subTrain, data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
 
 # Make Predictions
 svm.probs = predict(fit.svm, testset, type = "prob")
@@ -204,7 +194,7 @@ plot(svm.ROC, print.thres="best", col="orange")
 nnet.ROC = roc(testset$diagnosis, nnet.probs$B, levels=levels(testset$diagnosis), direction = ">")
 plot(nnet.ROC, print.thres="best", col="red")
 
-# compare the AUC
+# comparison of the AUC
 svm.ROC
 nnet.ROC 
 
@@ -212,29 +202,25 @@ nnet.ROC
 cv.values = resamples(list(svm=fit.svm, nnet = fit.nnet)) 
 summary(cv.values) 
 
-# dotplot 
+# Plots
 dotplot(cv.values, metric = "ROC") 
-
-# bwplot 
 bwplot(cv.values, layout = c(3, 1)) 
-
-# splom plot
 splom(cv.values,metric="ROC") 
 
 # timings required for training the models
 cv.values$timings
 
-# Precision, Recall an F1 for svm model
+# Precision, Recall an F1 for SVM model
 realvalues = testset[,1]
-classLabel <- confusionMatrix(predictions_svm, realvalues, mode="prec_recall", positive = "B")
-classLabel
-classLabel$byClass["Precision"]
-classLabel$byClass["Recall"]
-classLabel$byClass["F1"]
+classLabelSVM <- confusionMatrix(predictions_svm, realvalues, mode="prec_recall", positive = "B")
+classLabelSVM
+classLabelSVM$byClass["Precision"]
+classLabelSVM$byClass["Recall"]
+classLabelSVM$byClass["F1"]
 
-# Precision, Recall an F1 for nnet model
-classLabel <- confusionMatrix(predictions_nnet, realvalues, mode="prec_recall", positive = "B")
-classLabel
-classLabel$byClass["Precision"]
-classLabel$byClass["Recall"]
-classLabel$byClass["F1"]
+# Precision, Recall an F1 for NNET model
+classLabelNNET <- confusionMatrix(predictions_nnet, realvalues, mode="prec_recall", positive = "B")
+classLabelNNET
+classLabelNNET$byClass["Precision"]
+classLabelNNET$byClass["Recall"]
+classLabelNNET$byClass["F1"]
