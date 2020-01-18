@@ -10,7 +10,7 @@
 #########################################
 
 # Set workspace path
-setwd("~/git/heartdisease")
+setwd("~/git/breastcancer")
 
 #Install packages and library
 install.packages(c("caret","FactoMineR","factoextra","corrplot","pROC","funModeling", "gridExtra"))
@@ -123,13 +123,7 @@ p10 <- fviz_contrib(pca, choice="var", axes=10, fill="#6BB7C6", color="grey", to
 
 grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,ncol=5)
 
-# Individuals
-ind = get_pca_ind(pca)
-fviz_pca_ind(pca, col.ind = "cos2",
-             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             repel = TRUE)
 
-##################################
 # Model applicated only on PCA dimensions
 trg = predict(pca, trainset)
 trg = data.frame(trg$coord, trainset[1])
@@ -170,48 +164,7 @@ cm_nnet
 fourfoldplot(cm_nnet$table, color = c("#CE1824","#60B267"),
              conf.level = 0, margin = 1, main = "Confusion Matrix NNET")
 
-##################################
-# DA TOGLIERE MOLTO PROBABILMENTE
 
-# 10-fold cross validation with 3 repeats
-control = trainControl(method="repeatedcv", number=10, repeats = 3)
-metric = "Accuracy"
-
-# Model applicated only on 10 attributes choosen after PCA
-subTrain = diagnosis~concave.points_mean+fractal_dimension_mean+texture_se+texture_worst+
-  smoothness_mean+symmetry_worst+fractal_dimension_worst+smoothness_se+concavity_se+symmetry_mean
-
-# SVM
-set.seed(7)
-fit.svm <- train(subTrain, data=trainset, method="svmRadial", metric=metric, trControl=control)
-# Neural networks
-set.seed(7)
-fit.nnet <- train(subTrain, data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
-
-# Accuracy
-list_models = list(svm=fit.svm, nnet=fit.nnet)
-results = resamples(list_models)
-summary(results)
-
-accuracies <- data.frame(fit.svm$results$Accuracy, fit.nnet$results$Accuracy)
-names(accuracies) <- c(paste("SVM accuracy"), paste("NNET accuracy"))
-boxplot(accuracies,col="#BBE1FA",ylab="value" )
-
-# Predictions SVM (accuracy of the model on our validation set)
-predictions_svm = predict(fit.svm, testset)
-cm_svm = confusionMatrix(predictions_svm, testset$diagnosis)
-cm_svm
-fourfoldplot(cm_svm$table, color = c("#CE1824","#60B267"),
-             conf.level = 0, margin = 1, main = "Confusion Matrix SVM")
-
-# Predictions NNET (accuracy of the model on our validation set)
-predictions_nnet = predict(fit.nnet, testset)
-cm_nnet = confusionMatrix(predictions_nnet, testset$diagnosis)
-cm_nnet
-fourfoldplot(cm_nnet$table, color = c("#CE1824","#60B267"),
-             conf.level = 0, margin = 1, main = "Confusion Matrix NNET")
-
-##################################
 # Model applicated on all attributes
 
 # 10-fold cross validation with 3 repeats
@@ -275,6 +228,8 @@ predictions = predict(bestModel, testset)
 cm = confusionMatrix(predictions, testset$diagnosis)
 
 
+# ROC
+
 #Set up the training control
 control = trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE, summaryFunction = twoClassSummary)
 metric = "ROC"
@@ -321,9 +276,28 @@ classLabelSVM$byClass["Precision"]
 classLabelSVM$byClass["Recall"]
 classLabelSVM$byClass["F1"]
 
+precision_recallSVM = coords(svm.ROC, "all", ret = c("recall", "precision"), transpose = FALSE)
+precision_recallSVM = precision_recallSVM[complete.cases(precision_recallSVM), ]
+dat = data.frame(x = precision_recallSVM$recall, y = precision_recallSVM$precision)
+ggplot(dat, aes(x, y)) +
+  geom_point() + 
+  xlab("Recall") +
+  ylab("Precision") +
+  theme_light()
+
 # Precision, Recall an F1 for NNET model
 classLabelNNET <- confusionMatrix(predictions_nnet, realvalues, mode="prec_recall", positive = "B")
 classLabelNNET
 classLabelNNET$byClass["Precision"]
 classLabelNNET$byClass["Recall"]
 classLabelNNET$byClass["F1"]
+
+precision_recallNNET = coords(nnet.ROC, "all", ret = c("recall", "precision"), transpose = FALSE)
+precision_recallNNET = precision_recallNNET[complete.cases(precision_recallNNET), ]
+dat = data.frame(x = precision_recallNNET$recall, y = precision_recallNNET$precision)
+ggplot(dat, aes(x, y)) +
+  geom_point() + 
+  xlab("Recall") +
+  ylab("Precision") +
+  theme_light()
+
