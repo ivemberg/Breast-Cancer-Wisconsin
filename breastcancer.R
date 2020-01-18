@@ -10,17 +10,17 @@
 #########################################
 
 # Set workspace path
-setwd("~/R/Machine Learning/heartdisease")
+setwd("~/git/heartdisease")
 
 #Install packages and library
-install.packages(c("caret","FactoMineR","factoextra","corrplot","pROC"))
-library(gridExtra)
+install.packages(c("caret","FactoMineR","factoextra","corrplot","pROC","funModeling", "gridExtra"))
 library(caret)
 library(FactoMineR) 
 library(factoextra)
 library(corrplot)
 library(pROC)
-library(GGally)
+library(funModeling)
+library(gridExtra)
 
 #Dataset
 dataset = read.csv("data.csv",
@@ -53,6 +53,9 @@ dim(trainset)
 sapply(trainset, class)
 head(trainset)
 summary(trainset)
+
+# Density plot of all variables
+plotar(data = dataset, target = "diagnosis", plot_type = "histdens", path_out = "./variablesgraphs.png")
 
 # Summary of the class distribution
 percentage = prop.table(table(trainset$diagnosis)) * 100
@@ -121,6 +124,8 @@ p10 <- fviz_contrib(pca, choice="var", axes=10, fill="#6BB7C6", color="grey", to
 
 grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,ncol=5)
 
+
+
 # Individuals
 ind = get_pca_ind(pca)
 fviz_pca_ind(pca, col.ind = "cos2",
@@ -182,7 +187,8 @@ print(bestModel)
 
 # Predictions (accuracy of the model on our validation set)
 predictions = predict(bestModel, testset)
-confusionMatrix(predictions, testset$diagnosis)
+cm = confusionMatrix(predictions, testset$diagnosis)
+
 
 #Set up the training control
 control = trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE, summaryFunction = twoClassSummary)
