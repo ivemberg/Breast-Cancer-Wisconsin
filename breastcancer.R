@@ -149,6 +149,12 @@ summary(results)
 # spread and the mean accuracy of each model.
 dotplot(results)
 
+# Predictions (accuracy of the model on our validation set)
+predictions_svm = predict(fit.svm, testset)
+
+# Predictions (accuracy of the model on our validation set)
+predictions_nnet = predict(fit.nnet, testset)
+
 # We get the model with best accurancy
 maxAcc = 0
 for(item in list_models){
@@ -196,7 +202,7 @@ svm.ROC = roc(testset$diagnosis, svm.probs$B, levels=levels(testset$diagnosis), 
 plot(svm.ROC, print.thres="best", col="orange")
 
 nnet.ROC = roc(testset$diagnosis, nnet.probs$B, levels=levels(testset$diagnosis), direction = ">")
-plot(nnet.ROC, print.thres="best", add=TRUE, col="red")
+plot(nnet.ROC, print.thres="best", col="red")
 
 # compare the AUC
 svm.ROC
@@ -218,9 +224,16 @@ splom(cv.values,metric="ROC")
 # timings required for training the models
 cv.values$timings
 
-# Precision, Recall an F1
+# Precision, Recall an F1 for svm model
 realvalues = testset[,1]
-classLabel <- confusionMatrix(predictions, realvalues, mode="prec_recall", positive = "B")
+classLabel <- confusionMatrix(predictions_svm, realvalues, mode="prec_recall", positive = "B")
+classLabel
+classLabel$byClass["Precision"]
+classLabel$byClass["Recall"]
+classLabel$byClass["F1"]
+
+# Precision, Recall an F1 for nnet model
+classLabel <- confusionMatrix(predictions_nnet, realvalues, mode="prec_recall", positive = "B")
 classLabel
 classLabel$byClass["Precision"]
 classLabel$byClass["Recall"]
