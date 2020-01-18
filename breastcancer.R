@@ -74,7 +74,7 @@ ggplot(trainset, aes(x=trainset$diagnosis, fill=trainset$diagnosis)) +
 
 # Correlation
 corr = cor(trainset[,2:31])
-corrplot(corr,type="lower",title = "Correlation of variables",tl.col=1,tl.cex=0.7)
+corrplot(corr,type="lower",tl.col=1,tl.cex=0.7)
 
 # Example of correlated variables (high redundancy)
 ggplot(trainset, aes(x = trainset$radius_mean, y = trainset$perimeter_mean, color = trainset$diagnosis)) +
@@ -153,9 +153,9 @@ list_models = list(svm=fit.svm, nnet=fit.nnet)
 results = resamples(list_models)
 summary(results)
 
-# Plot of the model evaluation results and comparison of the
-# spread and the mean accuracy of each model.
-dotplot(results)
+accuracies <- data.frame(fit.svm$results$Accuracy, fit.nnet$results$Accuracy)
+names(accuracies) <- c(paste("SVM accuracy"), paste("NNET accuracy"))
+boxplot(accuracies,col="#BBE1FA",ylab="value" )
 
 # Predictions SVM (accuracy of the model on our validation set)
 predictions_svm = predict(fit.svm, testset)
@@ -243,3 +243,15 @@ classLabelNNET
 classLabelNNET$byClass["Precision"]
 classLabelNNET$byClass["Recall"]
 classLabelNNET$byClass["F1"]
+
+#Save plots
+
+plots.png.detials <- file.info(plots.png.paths)
+plots.png.detials <- plots.png.detials[order(plots.png.detials$mtime),]
+sorted.png.names <- gsub(plots.dir.path, "C:/Users/strav/git/heartdisease", row.names(plots.png.detials), fixed=TRUE)
+numbered.png.names <- paste0("C:/Users/strav/git/heartdisease", 1:length(sorted.png.names), ".png")
+
+# Rename all the .png files as: 1.png, 2.png, 3.png, and so on.
+file.rename(from=sorted.png.names, to=numbered.png.names)
+
+file.copy(from=plots.png.paths, to="C:/Users/strav/git/heartdisease/grafici")
