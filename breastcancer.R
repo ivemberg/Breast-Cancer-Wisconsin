@@ -65,7 +65,7 @@ ggplot(trainset, aes(x=trainset$diagnosis, fill=trainset$diagnosis)) +
   xlab("Malignant or Benign diagnosis") + 
   ylab("Num. of cases") +
   ggtitle("Target distribution") +
-  scale_fill_manual(name = "B/M", labels = c("B", "M"), values = c("#ee8572", "#63b7af")) +
+  scale_fill_manual(name = "B/M", labels = c("B", "M"), values = c("#60B267", "#CE1824")) +
   theme_light()
 
 
@@ -73,8 +73,21 @@ ggplot(trainset, aes(x=trainset$diagnosis, fill=trainset$diagnosis)) +
 corr = cor(trainset[,2:31])
 corrplot(corr,type="lower",title = "Correlation of variables",tl.col=1,tl.cex=0.7)
 
-ggpairs(trainset, columns = 1:10, title = "titolo",  
-        axisLabels = "show", columnLabels = colnames(trainset[,1:10]))
+# Example of correlated variables (high redundancy)
+ggplot(trainset, aes(x = trainset$radius_mean, y = trainset$perimeter_mean, color = trainset$diagnosis)) +
+  geom_point() + 
+  xlab("Radius mean") +
+  ylab("Perimeter mean") +
+  scale_color_manual(name = "Diagnosis", values=c("#60B267", "#CE1824")) +
+  theme_light()
+
+# Example of uncorrelated variables (low redundancy)
+ggplot(trainset, aes(x = trainset$fractal_dimension_se, y = trainset$area_worst, color = trainset$diagnosis)) +
+  geom_point() + 
+  xlab("Fractal dimension standard error") +
+  ylab("Area worst") +
+  scale_color_manual(name = "Diagnosis", values=c("#60B267", "#CE1824")) +
+  theme_light()
 
 # PCA 
 trainset.pca = trainset[,2:31] 
@@ -95,16 +108,16 @@ head(var$coord, 30)
 fviz_pca_var(pca, col.var = "red")
 
 # Dimension's study
-p1 <- fviz_contrib(pca, choice="var", axes=1, fill="pink", color="grey", top=10)
-p2 <- fviz_contrib(pca, choice="var", axes=2, fill="skyblue", color="grey", top=10)
-p3 <- fviz_contrib(pca, choice="var", axes=3, fill="pink", color="grey", top=10)
-p4 <- fviz_contrib(pca, choice="var", axes=4, fill="skyblue", color="grey", top=10)
-p5 <- fviz_contrib(pca, choice="var", axes=5, fill="pink", color="grey", top=10)
-p6 <- fviz_contrib(pca, choice="var", axes=6, fill="skyblue", color="grey", top=10)
-p7 <- fviz_contrib(pca, choice="var", axes=7, fill="pink", color="grey", top=10)
-p8 <- fviz_contrib(pca, choice="var", axes=8, fill="skyblue", color="grey", top=10)
-p9 <- fviz_contrib(pca, choice="var", axes=9, fill="pink", color="grey", top=10)
-p10 <- fviz_contrib(pca, choice="var", axes=10, fill="skyblue", color="grey", top=10)
+p1 <- fviz_contrib(pca, choice="var", axes=1, fill="#6BB7C6", color="grey", top=10)
+p2 <- fviz_contrib(pca, choice="var", axes=2, fill="#6BB7C6", color="grey", top=10)
+p3 <- fviz_contrib(pca, choice="var", axes=3, fill="#6BB7C6", color="grey", top=10)
+p4 <- fviz_contrib(pca, choice="var", axes=4, fill="#6BB7C6", color="grey", top=10)
+p5 <- fviz_contrib(pca, choice="var", axes=5, fill="#6BB7C6", color="grey", top=10)
+p6 <- fviz_contrib(pca, choice="var", axes=6, fill="#6BB7C6", color="grey", top=10)
+p7 <- fviz_contrib(pca, choice="var", axes=7, fill="#6BB7C6", color="grey", top=10)
+p8 <- fviz_contrib(pca, choice="var", axes=8, fill="#6BB7C6", color="grey", top=10)
+p9 <- fviz_contrib(pca, choice="var", axes=9, fill="#6BB7C6", color="grey", top=10)
+p10 <- fviz_contrib(pca, choice="var", axes=10, fill="#6BB7C6", color="grey", top=10)
 
 grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,ncol=5)
 
