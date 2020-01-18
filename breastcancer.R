@@ -55,7 +55,7 @@ head(trainset)
 summary(trainset)
 
 # Density plot of all variables
-plotar(data = dataset, target = "diagnosis", plot_type = "histdens", path_out = "./variablesgraphs.png") #da controllare e fare solo alcuni
+plotar(data = dataset, target = "diagnosis", plot_type = "histdens", path_out = "./variablesgraphs.png")
 
 # Summary of the class distribution
 percentage = prop.table(table(trainset$diagnosis)) * 100
@@ -93,8 +93,7 @@ ggplot(trainset, aes(x = trainset$fractal_dimension_se, y = trainset$area_worst,
   theme_light()
 
 # PCA 
-trainset.pca = trainset[,2:31] 
-pca <- PCA(trainset.pca, scale.unit = TRUE, ncp = 10, graph = TRUE) 
+pca <- PCA(trainset[,2:31], scale.unit = TRUE, ncp = 10, graph = TRUE) 
 
 # Examinate the PCA's result with the eigenvalues
 eig.val = get_eigenvalue(pca)
@@ -130,14 +129,57 @@ fviz_pca_ind(pca, col.ind = "cos2",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE)
 
-# Model applicated only on 10 attributes choosen after PCA
-subTrain = diagnosis~concave.points_mean+fractal_dimension_mean+texture_se+texture_worst+
-  smoothness_mean+symmetry_worst+fractal_dimension_worst+smoothness_se+concavity_se+symmetry_mean
-
+##################################
+# Model applicated only on PCA dimensions
+trg = predict(pca, trainset)
+trg = data.frame(trg$coord, trainset[1])
+tst = predict(pca, testset)
+tst = data.frame(tst$coord, testset[1])
 
 # 10-fold cross validation with 3 repeats
 control = trainControl(method="repeatedcv", number=10, repeats = 3)
 metric = "Accuracy"
+
+# SVM
+set.seed(7)
+fit.svm <- train(diagnosis~., data=trg, method="svmRadial", metric=metric, trControl=control)
+# Neural networks
+set.seed(7)
+fit.nnet <- train(diagnosis~., data=trg, method="nnet", metric=metric, trControl=control, trace=FALSE)
+
+# Accuracy
+list_models = list(svm=fit.svm, nnet=fit.nnet)
+results = resamples(list_models)
+summary(results)
+
+accuracies <- data.frame(fit.svm$results$Accuracy, fit.nnet$results$Accuracy)
+names(accuracies) <- c(paste("SVM accuracy"), paste("NNET accuracy"))
+boxplot(accuracies,col="#BBE1FA",ylab="value" )
+
+# Predictions SVM (accuracy of the model on our validation set)
+predictions_svm = predict(fit.svm, tst)
+cm_svm = confusionMatrix(predictions_svm, tst$diagnosis)
+cm_svm
+fourfoldplot(cm_svm$table, color = c("#CE1824","#60B267"),
+             conf.level = 0, margin = 1, main = "Confusion Matrix SVM")
+
+# Predictions NNET (accuracy of the model on our validation set)
+predictions_nnet = predict(fit.nnet, tst)
+cm_nnet = confusionMatrix(predictions_nnet, tst$diagnosis)
+cm_nnet
+fourfoldplot(cm_nnet$table, color = c("#CE1824","#60B267"),
+             conf.level = 0, margin = 1, main = "Confusion Matrix NNET")
+
+##################################
+# DA TOGLIERE MOLTO PROBABILMENTE
+
+# 10-fold cross validation with 3 repeats
+control = trainControl(method="repeatedcv", number=10, repeats = 3)
+metric = "Accuracy"
+
+# Model applicated only on 10 attributes choosen after PCA
+subTrain = diagnosis~concave.points_mean+fractal_dimension_mean+texture_se+texture_worst+
+  smoothness_mean+symmetry_worst+fractal_dimension_worst+smoothness_se+concavity_se+symmetry_mean
 
 # SVM
 set.seed(7)
@@ -165,6 +207,44 @@ fourfoldplot(cm_svm$table, color = c("#CE1824","#60B267"),
 # Predictions NNET (accuracy of the model on our validation set)
 predictions_nnet = predict(fit.nnet, testset)
 cm_nnet = confusionMatrix(predictions_nnet, testset$diagnosis)
+cm_nnet
+fourfoldplot(cm_nnet$table, color = c("#CE1824","#60B267"),
+             conf.level = 0, margin = 1, main = "Confusion Matrix NNET")
+
+##################################
+# Model applicated on all attributes
+
+# 10-fold cross validation with 3 repeats
+control = trainControl(method="repeatedcv", number=10, repeats = 3)
+metric = "Accuracy"
+
+# SVM
+set.seed(7)
+fit.svm <- train(diagnosis~., data=trainset, method="svmRadial", metric=metric, trControl=control)
+# Neural networks
+set.seed(7)
+fit.nnet <- train(diagnosis~., data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
+
+# Accuracy
+list_models = list(svm=fit.svm, nnet=fit.nnet)
+results = resamples(list_models)
+summary(results)
+
+accuracies <- data.frame(fit.svm$results$Accuracy, fit.nnet$results$Accuracy)
+names(accuracies) <- c(paste("SVM accuracy"), paste("NNET accuracy"))
+boxplot(accuracies,col="#BBE1FA",ylab="value" )
+
+# Predictions SVM (accuracy of the model on our validation set)
+predictions_svm = predict(fit.svm, testset)
+cm_svm = confusionMatrix(predictions_svm, testset$diagnosis)
+cm_svm
+fourfoldplot(cm_svm$table, color = c("#CE1824","#60B267"),
+             conf.level = 0, margin = 1, main = "Confusion Matrix SVM")
+
+# Predictions NNET (accuracy of the model on our validation set)
+predictions_nnet = predict(fit.nnet, testset)
+cm_nnet = confusionMatrix(predictions_nnet, testset$diagnosis)
+cm_nnet
 fourfoldplot(cm_nnet$table, color = c("#CE1824","#60B267"),
              conf.level = 0, margin = 1, main = "Confusion Matrix NNET")
 
@@ -192,7 +272,8 @@ print(bestModel)
 
 # Predictions (accuracy of the model on our validation set)
 predictions = predict(bestModel, testset)
-confusionMatrix(predictions, testset$diagnosis)
+cm = confusionMatrix(predictions, testset$diagnosis)
+
 
 #Set up the training control
 control = trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE, summaryFunction = twoClassSummary)
@@ -200,11 +281,11 @@ metric = "ROC"
 
 # SVM
 set.seed(7)
-fit.svm <- train(subTrain, data=trainset, method="svmRadial", metric=metric, trControl=control)
+fit.svm <- train(diagnosis~., data=trainset, method="svmRadial", metric=metric, trControl=control)
 
 # Neural Network
 set.seed(7)
-fit.nnet <- train(subTrain, data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
+fit.nnet <- train(diagnosis~., data=trainset, method="nnet", metric=metric, trControl=control, trace=FALSE)
 
 # Make Predictions
 svm.probs = predict(fit.svm, testset, type = "prob")
@@ -226,7 +307,7 @@ cv.values = resamples(list(svm=fit.svm, nnet = fit.nnet))
 summary(cv.values) 
 
 # Plots
-dotplot(cv.values, metric = "ROC") 
+dotplot(cv.values, metric = "ROC")
 splom(cv.values, metric="ROC") 
 
 # timings required for training the models
