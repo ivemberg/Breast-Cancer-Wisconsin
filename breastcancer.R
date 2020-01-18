@@ -55,7 +55,7 @@ head(trainset)
 summary(trainset)
 
 # Density plot of all variables
-plotar(data = dataset, target = "diagnosis", plot_type = "histdens", path_out = "./variablesgraphs.png")
+plotar(data = dataset, target = "diagnosis", plot_type = "histdens", path_out = "./variablesgraphs.png") #da controllare e fare solo alcuni
 
 # Summary of the class distribution
 percentage = prop.table(table(trainset$diagnosis)) * 100
@@ -101,14 +101,14 @@ eig.val = get_eigenvalue(pca)
 eig.val
 
 # Graphical representation of eigenvalues
-fviz_eig(pca, addlabels = TRUE, ylim = c(0,50))
+fviz_eig(pca, addlabels = TRUE, ylim = c(0,45), title = "Eigenvalues")
 
 # Variables extraction
 var = get_pca_var(pca)
 head(var$coord, 30)
 
 # Graphical representation of PCA's variables
-fviz_pca_var(pca, col.var = "red")
+fviz_pca_var(pca, col.var = "black") #da rivedere se mettere
 
 # Dimension's study
 p1 <- fviz_contrib(pca, choice="var", axes=1, fill="#6BB7C6", color="grey", top=10)
@@ -123,8 +123,6 @@ p9 <- fviz_contrib(pca, choice="var", axes=9, fill="#6BB7C6", color="grey", top=
 p10 <- fviz_contrib(pca, choice="var", axes=10, fill="#6BB7C6", color="grey", top=10)
 
 grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,ncol=5)
-
-
 
 # Individuals
 ind = get_pca_ind(pca)
@@ -159,9 +157,16 @@ boxplot(accuracies,col="#BBE1FA",ylab="value" )
 
 # Predictions SVM (accuracy of the model on our validation set)
 predictions_svm = predict(fit.svm, testset)
+cm_svm = confusionMatrix(predictions_svm, testset$diagnosis)
+cm_svm
+fourfoldplot(cm_svm$table, color = c("#CE1824","#60B267"),
+             conf.level = 0, margin = 1, main = "Confusion Matrix SVM")
 
 # Predictions NNET (accuracy of the model on our validation set)
 predictions_nnet = predict(fit.nnet, testset)
+cm_nnet = confusionMatrix(predictions_nnet, testset$diagnosis)
+fourfoldplot(cm_nnet$table, color = c("#CE1824","#60B267"),
+             conf.level = 0, margin = 1, main = "Confusion Matrix NNET")
 
 # Take the model with the best accurancy
 maxAcc = 0
@@ -187,8 +192,7 @@ print(bestModel)
 
 # Predictions (accuracy of the model on our validation set)
 predictions = predict(bestModel, testset)
-cm = confusionMatrix(predictions, testset$diagnosis)
-
+confusionMatrix(predictions, testset$diagnosis)
 
 #Set up the training control
 control = trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE, summaryFunction = twoClassSummary)
@@ -223,8 +227,7 @@ summary(cv.values)
 
 # Plots
 dotplot(cv.values, metric = "ROC") 
-bwplot(cv.values, layout = c(3, 1)) 
-splom(cv.values,metric="ROC") 
+splom(cv.values, metric="ROC") 
 
 # timings required for training the models
 cv.values$timings
@@ -243,15 +246,3 @@ classLabelNNET
 classLabelNNET$byClass["Precision"]
 classLabelNNET$byClass["Recall"]
 classLabelNNET$byClass["F1"]
-
-#Save plots
-
-plots.png.detials <- file.info(plots.png.paths)
-plots.png.detials <- plots.png.detials[order(plots.png.detials$mtime),]
-sorted.png.names <- gsub(plots.dir.path, "C:/Users/strav/git/heartdisease", row.names(plots.png.detials), fixed=TRUE)
-numbered.png.names <- paste0("C:/Users/strav/git/heartdisease", 1:length(sorted.png.names), ".png")
-
-# Rename all the .png files as: 1.png, 2.png, 3.png, and so on.
-file.rename(from=sorted.png.names, to=numbered.png.names)
-
-file.copy(from=plots.png.paths, to="C:/Users/strav/git/heartdisease/grafici")
