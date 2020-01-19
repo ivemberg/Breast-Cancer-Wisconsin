@@ -10,7 +10,7 @@
 #########################################
 
 # Set workspace path
-setwd("~/git/breastcancer")
+# setwd("~/git/breastcancer")
 
 #Install packages and library
 install.packages(c("caret","FactoMineR","factoextra","corrplot","pROC","funModeling", "gridExtra"))
@@ -54,15 +54,72 @@ sapply(trainset, class)
 head(trainset)
 summary(trainset)
 
-# Density plot of all variables
-plotar(data = dataset, target = "diagnosis", plot_type = "histdens", path_out = "./variablesgraphs.png")
+# Density plot of all mean variables
+ggplot(dataset, aes(x=dataset$radius_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Radius mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$area_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Area mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$perimeter_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Perimeter mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$smoothness_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Smoothness mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$compactness_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Compactness mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$concavity_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Concavity mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$concave.points_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Concave Points mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$symmetry_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Symmetry mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$fractal_dimension_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Fractal dimension mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
+
+ggplot(dataset, aes(x=dataset$texture_mean)) + 
+  geom_density(aes(group=dataset$diagnosis, fill=dataset$diagnosis), alpha=0.3) +
+  xlab("Texture mean") +
+  scale_fill_discrete(name = "diagnosis") +
+  theme_light()
 
 # Summary of the class distribution
 percentage = prop.table(table(trainset$diagnosis)) * 100
 cbind(freq=table(trainset$target), percentage=percentage)
 
 # Graphs
-
 ggplot(trainset, aes(x=trainset$diagnosis, fill=trainset$diagnosis)) + 
   geom_bar() +
   xlab("Malignant or Benign diagnosis") + 
@@ -107,7 +164,7 @@ var = get_pca_var(pca)
 head(var$coord, 30)
 
 # Graphical representation of PCA's variables
-fviz_pca_var(pca, col.var = "black") #da rivedere se mettere
+fviz_pca_var(pca, col.var = "black")
 
 # Dimension's study
 p1 <- fviz_contrib(pca, choice="var", axes=1, fill="#6BB7C6", color="grey", top=10)
@@ -122,7 +179,6 @@ p9 <- fviz_contrib(pca, choice="var", axes=9, fill="#6BB7C6", color="grey", top=
 p10 <- fviz_contrib(pca, choice="var", axes=10, fill="#6BB7C6", color="grey", top=10)
 
 grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,ncol=5)
-
 
 # Model applicated only on PCA dimensions
 trg = predict(pca, trainset)
@@ -225,8 +281,7 @@ print(bestModel)
 
 # Predictions (accuracy of the model on our validation set)
 predictions = predict(bestModel, testset)
-cm = confusionMatrix(predictions, testset$diagnosis)
-
+confusionMatrix(predictions, testset$diagnosis)
 
 # ROC
 
@@ -262,7 +317,10 @@ cv.values = resamples(list(svm=fit.svm, nnet = fit.nnet))
 summary(cv.values) 
 
 # Plots
-dotplot(cv.values, metric = "ROC")
+ROCs <- data.frame(cv.values$values$`svm~ROC`, cv.values$values$`nnet~ROC`)
+names(ROCs) <- c(paste("SVM ROC"), paste("NNET ROC"))
+boxplot(ROCs,col="#BBE1FA",ylab="value", ylim=c(0.975,1))
+
 splom(cv.values, metric="ROC") 
 
 # timings required for training the models
